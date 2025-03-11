@@ -1,0 +1,144 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model - base for all users
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  name           String?
+  password       String
+  role           String    // 'RECRUITER' or 'JOBSEEKER'
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  // Relationships based on role
+  recruiterProfile RecruiterProfile?
+  jobSeekerProfile JobSeekerProfile?
+}
+
+// Recruiter specific profile
+model RecruiterProfile {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company         String
+  position        String?
+  bio             String?
+  
+  // Relationships
+  jobPostings     JobPosting[]
+}
+
+// Job seeker specific profile
+model JobSeekerProfile {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String?
+  bio             String?
+  resumeUrl       String?
+  parsedResume    ParsedResume?
+  
+  // Relationships
+  applications    Application[]
+  skills          Skill[]
+  experiences     Experience[]
+  educations      Education[]
+}
+
+// Parsed resume data
+model ParsedResume {
+  id               String    @id @default(cuid())
+  jobSeekerProfileId String  @unique
+  jobSeekerProfile  JobSeekerProfile @relation(fields: [jobSeekerProfileId], references: [id], onDelete: Cascade)
+  contactInfo      Json?
+  summary          String?
+  rawText          String?
+  lastUpdated      DateTime  @default(now())
+}
+
+// Skills for job seekers
+model Skill {
+  id               String    @id @default(cuid())
+  name             String
+  level            String?   // e.g., "Beginner", "Intermediate", "Expert"
+  
+  // Relationships
+  jobSeekerProfiles JobSeekerProfile[]
+  jobPostings      JobPosting[]
+}
+
+// Work experience
+model Experience {
+  id               String    @id @default(cuid())
+  jobSeekerProfileId String
+  jobSeekerProfile  JobSeekerProfile @relation(fields: [jobSeekerProfileId], references: [id], onDelete: Cascade)
+  company          String
+  position         String
+  startDate        DateTime
+  endDate          DateTime?
+  current          Boolean   @default(false)
+  description      String?
+}
+
+// Education
+model Education {
+  id               String    @id @default(cuid())
+  jobSeekerProfileId String
+  jobSeekerProfile  JobSeekerProfile @relation(fields: [jobSeekerProfileId], references: [id], onDelete: Cascade)
+  institution      String
+  degree           String
+  field            String?
+  startDate        DateTime
+  endDate          DateTime?
+  current          Boolean   @default(false)
+  description      String?
+}
+
+// Job postings
+model JobPosting {
+  id               String    @id @default(cuid())
+  recruiterProfileId String
+  recruiterProfile  RecruiterProfile @relation(fields: [recruiterProfileId], references: [id], onDelete: Cascade)
+  title            String
+  company          String
+  location         String?
+  type             String    // "Full-time", "Part-time", etc.
+  description      String
+  requirements     String?
+  salary           String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  isActive         Boolean   @default(true)
+  
+  // Relationships
+  applications     Application[]
+  requiredSkills   Skill[]
+}
+
+// Job applications
+model Application {
+  id               String    @id @default(cuid())
+  jobPostingId     String
+  jobPosting       JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  jobSeekerProfileId String
+  jobSeekerProfile  JobSeekerProfile @relation(fields: [jobSeekerProfileId], references: [id], onDelete: Cascade)
+  status           String    // "Applied", "Reviewing", "Interviewed", "Offered", "Rejected"
+  appliedAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  coverLetter      String?
+  matchScore       Float?    // Calculated match score between job and candidate
+  feedback         String?   // Feedback for the candidate
+}
