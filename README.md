@@ -1,3 +1,4 @@
+LIVE-https://hire-genius-eta.vercel.app/
 # HireGenius - Intelligent Recruitment Platform
 
 HireGenius is a modern recruitment platform that leverages intelligent resume processing and job-candidate matching to streamline the hiring process for both recruiters and job seekers.
