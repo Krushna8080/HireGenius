@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
 import { prisma } from '@/lib/db/prisma';
 import { z } from 'zod';
 
@@ -131,12 +131,17 @@ export async function PATCH(
       
       // Add new skills
       for (const skillName of updateData.skills) {
-        // Find or create skill
-        const skill = await prisma.skill.upsert({
-          where: { name: skillName },
-          update: {},
-          create: { name: skillName },
+        // First try to find the skill by name
+        let skill = await prisma.skill.findFirst({
+          where: { name: skillName }
         });
+
+        // If skill doesn't exist, create it
+        if (!skill) {
+          skill = await prisma.skill.create({
+            data: { name: skillName }
+          });
+        }
         
         // Connect skill to job posting
         await prisma.jobPosting.update({

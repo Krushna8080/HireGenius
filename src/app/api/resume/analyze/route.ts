@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
 import { prisma } from '@/lib/db/prisma';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
@@ -98,7 +98,9 @@ async function getResumeAnalysis(resumeId: string) {
         await prisma.jobSeekerProfile.update({
           where: { id: jobSeekerProfile.id },
           data: {
-            parsedResumeId: newParsedResume.id,
+            parsedResume: {
+              connect: { id: newParsedResume.id }
+            }
           },
         });
         
@@ -126,7 +128,11 @@ async function getResumeAnalysis(resumeId: string) {
 
     // Find the JobSeekerProfile associated with this ParsedResume to get skills
     const profileWithResume = await prisma.jobSeekerProfile.findFirst({
-      where: { parsedResumeId: parsedResume.id },
+      where: { 
+        parsedResume: {
+          id: parsedResume.id
+        }
+      },
       include: { 
         skills: true,
         user: true,
@@ -302,12 +308,17 @@ async function updateSkills(profileId: string, skills: string[]) {
     for (const skillName of skills) {
       if (!skillName) continue;
       
-      // Find or create the skill
-      const skill = await prisma.skill.upsert({
-        where: { name: skillName },
-        update: {},
-        create: { name: skillName },
+      // First try to find the skill by name
+      let skill = await prisma.skill.findFirst({
+        where: { name: skillName }
       });
+
+      // If skill doesn't exist, create it
+      if (!skill) {
+        skill = await prisma.skill.create({
+          data: { name: skillName }
+        });
+      }
       
       // Connect the skill to the profile
       await prisma.jobSeekerProfile.update({
